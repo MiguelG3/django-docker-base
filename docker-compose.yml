@@ -1,0 +1,79 @@
+version: "3.9"
+
+networks:
+  default:
+    driver: bridge
+  npm_proxy:
+    name: npm_proxy
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.89.0/24
+
+x-common-keys-core: &common-keys-core
+  networks:
+    - npm_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: always
+
+x-common-keys-apps: &common-keys-apps
+  networks:
+    - npm_proxy
+  security_opt:
+    - no-new-privileges:true
+  restart: unless-stopped
+
+services:
+# Commented because I have npm service running on a different stack, feel free to uncomment and use as a single stack
+  # npm:
+  #   <<: *common-keys-core # See EXTENSION FIELDS at the top
+  #   container_name: nginx-proxy-manager
+  #   image: 'jc21/nginx-proxy-manager:latest'
+  #   # For Static IP
+  #   networks:
+  #   # For Static IP
+  #     npm_proxy:
+  #       ipv4_address: 192.168.89.254 # You can specify a static IP
+  #   # For Dynamic IP
+  #   # networks:
+  #   #  - npm_proxy
+  #   ports:
+  #     - '80:80' # Public HTTP Port. Port Forwarding on Router is ON.
+  #     - '443:443' # Public HTTPS Port. Port Forwarding on Router is ON.
+  #     - '81:81' # Admin Web Port. Port Forwarding on Router is OFF. Internal Home Network Access only - 192.168.89.254:81.
+  #   volumes:
+  #     - $DOCKERDIR/appdata/npm/config:/config
+  #     - $DOCKERDIR/appdata/npm/letsencrypt:/etc/letsencrypt
+  #     - $DOCKERDIR/appdata/npm/data:/data
+  #   environment:
+  #     DB_SQLITE_FILE: "/config/database.sqlite"
+  #     DISABLE_IPV6: 'true'
+  
+  web:
+    <<: *common-keys-apps
+    build: .
+    command: python -m uvicorn core.asgi:application --reload --port 8000 --host '0.0.0.0'
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    container_name: web
+
+  
+  db:
+    <<: *common-keys-apps
+    image: postgres
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 30s
+      retries: 3
+    container_name: db

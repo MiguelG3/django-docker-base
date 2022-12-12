@@ -1,0 +1,18 @@
+{
+    "python.defaultInterpreterPath": "venv/bin/python",
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": [
+        "--line-length=119"
+    ],
+    "isort.args": [
+        "--profile=black",
+    ],
+    "[python]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        }
+    },
+    "python.linting.flake8Enabled": true,
+    "python.linting.lintOnSave": true,
+}
