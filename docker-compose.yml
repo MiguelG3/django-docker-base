@@ -10,14 +10,22 @@ networks:
       config:
         - subnet: 192.168.89.0/24
 
-x-common-keys-core: &common-keys-core
+x-environment:
+  &default-tz-puid-pgid
+  TZ: $TZ
+  PUID: $PUID
+  PGID: $PGID
+
+x-common-keys-core:
+  &common-keys-core
   networks:
     - npm_proxy
   security_opt:
     - no-new-privileges:true
   restart: always
 
-x-common-keys-apps: &common-keys-apps
+x-common-keys-apps:
+  &common-keys-apps
   networks:
     - npm_proxy
   security_opt:
@@ -25,7 +33,7 @@ x-common-keys-apps: &common-keys-apps
   restart: unless-stopped
 
 services:
-# Commented because I have npm service running on a different stack, feel free to uncomment and use as a single stack
+  # Commented because I have npm service running on a different stack, feel free to uncomment and use as a single stack
   # npm:
   #   <<: *common-keys-core # See EXTENSION FIELDS at the top
   #   container_name: nginx-proxy-manager
@@ -58,21 +66,23 @@ services:
       - .:/app
     ports:
       - "8000:8000"
+    environment:
+      <<: *default-tz-puid-pgid
     depends_on:
       db:
         condition: service_healthy
     container_name: web
 
-
   db:
     <<: *common-keys-apps
-    image: postgres
+    image: postgres:13.9-alpine
     volumes:
       - ./db:/var/lib/postgresql/data
     environment:
+      <<: *default-tz-puid-pgid
       POSTGRES_PASSWORD: $POSTGRES_PASSWORD
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 3s
       timeout: 30s
       retries: 3
